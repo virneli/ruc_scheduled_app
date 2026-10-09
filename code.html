@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Расписание РУК</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0; padding: 16px;
+      background: var(--tg-theme-bg-color, #fff);
+      color: var(--tg-theme-text-color, #000);
+    }
+    .btn {
+      display: block; width: 100%; padding: 12px; margin: 8px 0;
+      background: var(--tg-theme-button-color, #2481cc);
+      color: var(--tg-theme-button-text-color, #fff);
+      border: none; border-radius: 8px; font-size: 16px; font-weight: bold;
+    }
+    .card {
+      border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px;
+      background: var(--tg-theme-secondary-bg-color, #f4f4f5);
+    }
+    select, input {
+      width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 6px; border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h2>📅 Расписание РУК</h2>
+
+  <div id="setup-section">
+    <label>Филиал:</label>
+    <select id="branch-select"></select>
+    
+    <label>Год набора:</label>
+    <select id="year-select"></select>
+
+    <label>Название группы:</label>
+    <input type="text" id="group-input" placeholder="Например: ЭБУ1-О/СПОс/КЗ26">
+
+    <button class="btn" onclick="saveSettings()">Сохранить настройки</button>
+  </div>
+
+  <div id="schedule-section" style="display:none;">
+    <button class="btn" onclick="loadSchedule('today')">На сегодня</button>
+    <button class="btn" onclick="loadSchedule('tomorrow')">На завтра</button>
+    <button class="btn" onclick="loadSchedule('week')">На эту неделю</button>
+    <button class="btn" onclick="loadSchedule('next_week')">На следующую неделю</button>
+    
+    <div id="content" style="margin-top: 16px;"></div>
+  </div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    // Загрузка настроек из CloudStorage по статье Telegram
+    tg.CloudStorage.getItem('user_config', (err, val) => {
+      if (!err && val) {
+        window.userConfig = JSON.parse(val);
+        document.getElementById('setup-section').style.display = 'none';
+        document.getElementById('schedule-section').style.display = 'block';
+        loadSchedule('week');
+      }
+    });
+
+    function saveSettings() {
+      const config = {
+        branch: document.getElementById('branch-select').value,
+        year: document.getElementById('year-select').value,
+        group: document.getElementById('group-input').value
+      };
+      // Сохраняем в Telegram Cloud Storage без сервера
+      tg.CloudStorage.setItem('user_config', JSON.stringify(config), () => {
+        window.userConfig = config;
+        document.getElementById('setup-section').style.display = 'none';
+        document.getElementById('schedule-section').style.display = 'block';
+        loadSchedule('week');
+      });
+    }
+
+    async function loadSchedule(mode) {
+      const content = document.getElementById('content');
+      content.innerHTML = "<i>Загрузка расписания...</i>";
+      
+      // Запрос через бесплатный Serverless Worker (Шаг 2)
+      const res = await fetch(`https://your-worker.workers.dev/schedule?mode=${mode}&branch=${window.userConfig.branch}&year=${window.userConfig.year}&group=${window.userConfig.group}`);
+      const data = await res.json();
+      
+      content.innerHTML = data.html || "Занятий не найдено.";
+    }
+  </script>
+</body>
+</html>
